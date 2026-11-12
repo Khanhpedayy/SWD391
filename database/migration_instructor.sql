@@ -1,64 +1,68 @@
--- Migration for Instructor Subsystem (Phân hệ Giảng viên)
--- Bao gom: Subjects, Topics, Question Options, Quizzes, Quiz Questions
-
+-- Migration for the instructor subsystem. Run after schema.sql on SQL Server.
 USE quiz_system;
+GO
 
 -- 1. Subjects table (Mon hoc)
-CREATE TABLE IF NOT EXISTS subjects (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+IF OBJECT_ID(N'dbo.subjects', N'U') IS NULL
+CREATE TABLE dbo.subjects (
+    id INT IDENTITY(1,1) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     code VARCHAR(20) NOT NULL UNIQUE,
     description VARCHAR(255) NULL,
-    status ENUM('Active', 'Inactive') DEFAULT 'Active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    status NVARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive')),
+    created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()
 );
 
 -- 2. Topics table (Chu de)
-CREATE TABLE IF NOT EXISTS topics (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+IF OBJECT_ID(N'dbo.topics', N'U') IS NULL
+CREATE TABLE dbo.topics (
+    id INT IDENTITY(1,1) PRIMARY KEY,
     subject_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     description VARCHAR(255) NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
 -- 3. Question Options (Cac phuong an lua chon & giai thich cho cau hoi)
-CREATE TABLE IF NOT EXISTS question_options (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+IF OBJECT_ID(N'dbo.question_options', N'U') IS NULL
+CREATE TABLE dbo.question_options (
+    id INT IDENTITY(1,1) PRIMARY KEY,
     question_id INT NOT NULL,
-    option_text TEXT NOT NULL,
-    is_correct TINYINT(1) NOT NULL DEFAULT 0,
-    explanation TEXT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    option_text NVARCHAR(MAX) NOT NULL,
+    is_correct BIT NOT NULL DEFAULT 0,
+    explanation NVARCHAR(MAX) NULL,
+    created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
     FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 );
 
 -- 4. Quizzes (De thi)
-CREATE TABLE IF NOT EXISTS quizzes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+IF OBJECT_ID(N'dbo.quizzes', N'U') IS NULL
+CREATE TABLE dbo.quizzes (
+    id INT IDENTITY(1,1) PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     subject_id INT NULL,
     topic VARCHAR(100) DEFAULT 'General',
     duration_minutes INT NOT NULL DEFAULT 60,
     pass_score DECIMAL(5,2) NOT NULL DEFAULT 5.0,
-    shuffle_questions TINYINT(1) DEFAULT 1,
-    shuffle_options TINYINT(1) DEFAULT 1,
-    status ENUM('Draft', 'Published', 'Archived') DEFAULT 'Draft',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    shuffle_questions BIT NOT NULL DEFAULT 1,
+    shuffle_options BIT NOT NULL DEFAULT 1,
+    status NVARCHAR(20) NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Published', 'Archived')),
+    created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
     FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL
 );
 
 -- 5. Quiz Questions (Danh sach cau hoi thuoc de thi)
-CREATE TABLE IF NOT EXISTS quiz_questions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+IF OBJECT_ID(N'dbo.quiz_questions', N'U') IS NULL
+CREATE TABLE dbo.quiz_questions (
+    id INT IDENTITY(1,1) PRIMARY KEY,
     quiz_id INT NOT NULL,
     question_id INT NOT NULL,
     order_index INT DEFAULT 0,
-    score_weight DECIMAL(4,2) DEFAULT 1.0,
+    score_weight DECIMAL(4,2) NOT NULL DEFAULT 1.0,
     FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
     FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 );
@@ -74,11 +78,11 @@ WHERE NOT EXISTS (SELECT 1 FROM subjects WHERE code = 'SWD392');
 
 -- Seed data for Topics
 INSERT INTO topics (subject_id, name, description)
-SELECT 1, 'HTML & CSS Basics', 'Basic web markup and styling'
+SELECT (SELECT TOP (1) id FROM subjects WHERE code = 'SWE102'), 'HTML & CSS Basics', 'Basic web markup and styling'
 WHERE NOT EXISTS (SELECT 1 FROM topics WHERE name = 'HTML & CSS Basics');
 
 INSERT INTO topics (subject_id, name, description)
-SELECT 1, 'ReactJS & State Management', 'Components, hooks, props'
+SELECT (SELECT TOP (1) id FROM subjects WHERE code = 'SWE102'), 'ReactJS & State Management', 'Components, hooks, props'
 WHERE NOT EXISTS (SELECT 1 FROM topics WHERE name = 'ReactJS & State Management');
 
 -- Seed sample options for existing questions

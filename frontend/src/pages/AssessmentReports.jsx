@@ -1,24 +1,20 @@
 import { useEffect, useState } from "react";
-import { getQuizzes } from "../services/quizService";
-import { getQuestions } from "../services/questionService";
+import { getQuizReport, getQuizzes } from "../services/quizService";
 
 function AssessmentReports() {
     const [quizzes, setQuizzes] = useState([]);
-    const [questions, setQuestions] = useState([]);
+    const [report, setReport] = useState(null);
     const [selectedQuizId, setSelectedQuizId] = useState("");
     const [loading, setLoading] = useState(false);
+    const [reportLoading, setReportLoading] = useState(false);
     const [error, setError] = useState("");
 
     useEffect(() => {
         const load = async () => {
             try {
                 setLoading(true);
-                const [qzs, qts] = await Promise.all([
-                    getQuizzes(),
-                    getQuestions()
-                ]);
+                const qzs = await getQuizzes();
                 setQuizzes(qzs || []);
-                setQuestions(qts || []);
                 if (qzs && qzs.length > 0) {
                     setSelectedQuizId(qzs[0].id);
                 }
@@ -31,34 +27,68 @@ function AssessmentReports() {
         load();
     }, []);
 
-    const selectedQuiz = quizzes.find((q) => q.id === Number(selectedQuizId)) || quizzes[0];
+    useEffect(() => {
+        if (!selectedQuizId) {
+            setReport(null);
+            return;
+        }
 
-    // Simulated statistical calculations based on questions and quiz configurations
-    const totalStudentsAttempted = 42;
-    const passedCount = 35;
-    const failedCount = 7;
-    const passRate = ((passedCount / totalStudentsAttempted) * 100).toFixed(1);
-    const avgScore = 7.8;
-    const maxScore = 10;
-    const minScore = 4.2;
+        let isCurrentRequest = true;
+        const loadReport = async () => {
+            try {
+                setReportLoading(true);
+                setError("");
+                setReport(null);
+                const nextReport = await getQuizReport(selectedQuizId);
+                if (isCurrentRequest) setReport(nextReport);
+            } catch (err) {
+                if (isCurrentRequest) {
+                    setError(err.message);
+                    setReport(null);
+                }
+            } finally {
+                if (isCurrentRequest) setReportLoading(false);
+            }
+        };
+
+        loadReport();
+        return () => {
+            isCurrentRequest = false;
+        };
+    }, [selectedQuizId]);
+
+    const selectedQuiz = quizzes.find((q) => q.id === Number(selectedQuizId)) || quizzes[0];
+    const summary = report?.summary || {};
+    const questions = report?.questions || [];
+    const totalSubmissions = Number(summary.total_submissions) || 0;
+    const passedCount = Number(summary.passed_count) || 0;
+    const failedCount = Number(summary.failed_count) || 0;
+    const passRate = totalSubmissions > 0
+        ? ((passedCount / totalSubmissions) * 100).toFixed(1)
+        : "0.0";
+    const avgScore = summary.average_score === null || summary.average_score === undefined
+        ? "-"
+        : Number(summary.average_score).toFixed(2);
+    const maxScore = summary.highest_score ?? "-";
+    const minScore = summary.lowest_score ?? "-";
 
     const exportReportCsv = () => {
         if (!selectedQuiz) return;
         const reportContent = `Assessment Report - Quiz: ${selectedQuiz.title}
 Subject: ${selectedQuiz.subject_name || "General"}
 Date Exported: ${new Date().toLocaleString()}
-Total Submissions: ${totalStudentsAttempted}
+Total Submissions: ${totalSubmissions}
 Pass Rate: ${passRate}%
 Average Score: ${avgScore}/10
 Highest Score: ${maxScore}
 Lowest Score: ${minScore}
 
 Question Performance Breakdown:
-ID,Question Content,Difficulty,Estimated Correct Rate,Estimated Wrong Rate
-${questions.map((q, idx) => {
-    const correctPercent = Math.max(30, 95 - (idx * 7) % 50);
-    const wrongPercent = 100 - correctPercent;
-    return `"${q.id}","${q.content.replace(/"/g, '""')}","${q.difficulty}","${correctPercent}%","${wrongPercent}%"`;
+ID,Question Content,Difficulty,Responses,Correct Rate,Wrong Rate
+${questions.map((q) => {
+    const correctPercent = Number(q.correct_rate) || 0;
+    const wrongPercent = Number(q.wrong_rate) || 0;
+    return `"${q.id}","${q.content.replace(/"/g, '""')}","${q.difficulty}","${q.answer_count}","${correctPercent}%","${wrongPercent}%"`;
 }).join("\n")}
 `;
         const blob = new Blob([reportContent], { type: "text/csv;charset=utf-8;" });
@@ -106,7 +136,7 @@ ${questions.map((q, idx) => {
                 </div>
             </section>
 
-            {loading ? (
+            {loading || reportLoading ? (
                 <p>Loading assessment data...</p>
             ) : selectedQuiz ? (
                 <>
@@ -115,7 +145,7 @@ ${questions.map((q, idx) => {
                         <div className="card" style={{ marginBottom: 0, textAlign: "center" }}>
                             <div style={{ color: "#6b7280", fontSize: "13px", fontWeight: "bold" }}>TOTAL SUBMISSIONS</div>
                             <div style={{ fontSize: "28px", fontWeight: "bold", color: "#2563eb", marginTop: "6px" }}>
-                                {totalStudentsAttempted}
+                                {totalSubmissions}
                             </div>
                         </div>
 
@@ -159,9 +189,9 @@ ${questions.map((q, idx) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {questions.map((q, idx) => {
-                                        const correctPercent = Math.max(30, 95 - (idx * 7) % 50);
-                                        const wrongPercent = 100 - correctPercent;
+                                    {questions.map((q) => {
+                                        const correctPercent = Number(q.correct_rate) || 0;
+                                        const wrongPercent = Number(q.wrong_rate) || 0;
                                         return (
                                             <tr key={q.id}>
                                                 <td>#{q.id}</td>

@@ -66,11 +66,21 @@ const previewQuiz = async (req, res, next) => {
     }
 };
 
+const getQuizReport = async (req, res, next) => {
+    try {
+        const report = await quizService.getQuizReport(req.params.id);
+        res.json(report);
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getQuizzes,
     getQuiz,
     createQuiz,
     updateQuiz,
     deleteQuiz,
-    previewQuiz
+    previewQuiz,
+    getQuizReport
 };

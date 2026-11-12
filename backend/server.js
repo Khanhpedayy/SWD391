@@ -7,6 +7,7 @@ const questionRoutes = require("./routes/questionRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 const learnerRoutes = require("./routes/learnerRoutes");
+const authRoutes = require("./routes/authRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 
 const app = express();
@@ -21,6 +22,7 @@ app.get("/", (req, res) => {
 app.use("/api/questions", questionRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/quizzes", quizRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/learner", learnerRoutes);
 app.use("/api/ai", aiRoutes);
 

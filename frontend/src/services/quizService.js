@@ -29,6 +29,11 @@ export const getQuizPreview = async (id) => {
     return handleResponse(response);
 };
 
+export const getQuizReport = async (id) => {
+    const response = await fetch(`${API_URL}/${id}/report`);
+    return handleResponse(response);
+};
+
 export const createQuiz = async (quiz) => {
     const response = await fetch(API_URL, {
         method: "POST",

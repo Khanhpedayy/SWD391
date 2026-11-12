@@ -4,10 +4,10 @@ const { sql, pool, poolConnect } = require("../config/db");
 // ==================== LIST QUIZZES ====================
 
 const findAll = async ({
-                           search = "",
-                           subject_id = "",
-                           status = ""
-                       } = {}) => {
+    search = "",
+    subject_id = "",
+    status = ""
+} = {}) => {
     await poolConnect;
 
     const request = pool.request();
@@ -351,10 +351,73 @@ const remove = async (id) => {
     return result.rowsAffected[0] > 0;
 };
 
+const getReport = async (id) => {
+    await poolConnect;
+
+    const summaryResult = await pool.request()
+        .input("quiz_id", sql.Int, Number(id))
+        .query(`
+            SELECT
+                COUNT(*) AS total_submissions,
+                COALESCE(SUM(CASE WHEN passed = 1 THEN 1 ELSE 0 END), 0) AS passed_count,
+                COALESCE(SUM(CASE WHEN passed = 0 THEN 1 ELSE 0 END), 0) AS failed_count,
+                AVG(score) AS average_score,
+                MAX(score) AS highest_score,
+                MIN(score) AS lowest_score
+            FROM quiz_attempts
+            WHERE quiz_id = @quiz_id
+              AND status = 'Submitted'
+        `);
+
+    const questionsResult = await pool.request()
+        .input("quiz_id", sql.Int, Number(id))
+        .query(`
+            SELECT
+                q.id,
+                q.content,
+                q.difficulty,
+                q.topic,
+                COUNT(aa.id) AS answer_count,
+                COALESCE(SUM(CASE WHEN aa.is_correct = 1 THEN 1 ELSE 0 END), 0) AS correct_count,
+                COALESCE(SUM(CASE WHEN aa.is_correct = 0 THEN 1 ELSE 0 END), 0) AS wrong_count,
+                CAST(
+                    COALESCE(
+                        100.0 * SUM(CASE WHEN aa.is_correct = 1 THEN 1 ELSE 0 END)
+                        / NULLIF(COUNT(aa.id), 0),
+                        0
+                    ) AS DECIMAL(5,1)
+                ) AS correct_rate,
+                CAST(
+                    COALESCE(
+                        100.0 * SUM(CASE WHEN aa.is_correct = 0 THEN 1 ELSE 0 END)
+                        / NULLIF(COUNT(aa.id), 0),
+                        0
+                    ) AS DECIMAL(5,1)
+                ) AS wrong_rate
+            FROM quiz_questions qq
+            INNER JOIN questions q ON qq.question_id = q.id
+            LEFT JOIN quiz_attempts qa
+                ON qa.quiz_id = qq.quiz_id
+               AND qa.status = 'Submitted'
+            LEFT JOIN quiz_attempt_answers aa
+                ON aa.attempt_id = qa.id
+               AND aa.question_id = q.id
+            WHERE qq.quiz_id = @quiz_id
+            GROUP BY q.id, q.content, q.difficulty, q.topic, qq.order_index, qq.id
+            ORDER BY qq.order_index ASC, qq.id ASC
+        `);
+
+    return {
+        summary: summaryResult.recordset[0],
+        questions: questionsResult.recordset
+    };
+};
+
 module.exports = {
     findAll,
     findById,
     create,
     update,
-    remove
+    remove,
+    getReport
 };

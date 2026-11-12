@@ -1,14 +1,34 @@
-const requireLearner = (req, res, next) => {
-    const learnerKey = String(req.header("X-Learner-Key") || "").trim();
+const jwt = require("jsonwebtoken");
 
-    if (!learnerKey || learnerKey.length < 8 || learnerKey.length > 64) {
+const requireLearner = (req, res, next) => {
+    const authorization = String(req.header("Authorization") || "");
+    const token = authorization.startsWith("Bearer ")
+        ? authorization.slice(7).trim()
+        : "";
+
+    if (!token || !process.env.JWT_SECRET) {
         return res.status(401).json({
-            message: "A valid learner session is required."
+            message: "Sign in to continue."
         });
     }
 
-    req.learnerKey = learnerKey;
-    next();
+    try {
+        const claims = jwt.verify(token, process.env.JWT_SECRET, {
+            issuer: "quiz-practice-system",
+            audience: "quiz-practice-learners"
+        });
+        const learnerId = Number(claims.sub);
+
+        if (!Number.isInteger(learnerId) || learnerId < 1) {
+            return res.status(401).json({ message: "Sign in to continue." });
+        }
+
+        req.learnerId = learnerId;
+        req.learnerKey = `account:${learnerId}`;
+        next();
+    } catch (error) {
+        res.status(401).json({ message: "Your session is invalid or expired. Sign in again." });
+    }
 };
 
 module.exports = { requireLearner };

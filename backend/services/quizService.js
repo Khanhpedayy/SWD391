@@ -164,11 +164,17 @@ const previewQuiz = async (id) => {
     };
 };
 
+const getQuizReport = async (id) => {
+    await getQuiz(id);
+    return quizModel.getReport(id);
+};
+
 module.exports = {
     getQuizzes,
     getQuiz,
     createQuiz,
     updateQuiz,
     deleteQuiz,
-    previewQuiz
+    previewQuiz,
+    getQuizReport
 };

@@ -3,23 +3,24 @@
 Tech stack:
 - Frontend: ReactJS + Vite
 - Backend: Node.js + Express.js
-- Database: MySQL
+- Database: Microsoft SQL Server
 - API: REST
 - CRUD module: Questions
 
 ## Requirements
 - Node.js 18+
-- MySQL 8+
+- Microsoft SQL Server 2019+
 
 ## 1. Create database
 
-Open MySQL and run:
+In SQL Server Management Studio, open and execute these scripts in order:
 
-```sql
-SOURCE database/schema.sql;
-```
+1. `database/schema.sql`
+2. `database/migration_instructor.sql`
+3. `database/migration_accounts.sql`
+4. `database/migration_learner.sql`
 
-Or copy the contents of `database/schema.sql` into MySQL Workbench.
+The scripts create the `quiz_system` database and are safe to run again after a successful setup.
 
 ## 2. Configure backend
 
@@ -28,7 +29,7 @@ Go to `backend/.env.example`, copy it to `.env`, then change the database passwo
 Example:
 
 DB_HOST=localhost
-DB_PORT=3306
+DB_PORT=1433
 DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=quiz_system
@@ -84,7 +85,18 @@ SOURCE database/migration_instructor.sql;
 SOURCE database/migration_learner.sql;
 ```
 
-Learner APIs (require `X-Learner-Key` header):
+Learner APIs require a bearer token. Create an account or sign in through the Learner Account page; attempts are tied to the signed-in learner.
+
+Authentication APIs:
+
+```
+POST   /api/auth/signup
+POST   /api/auth/login
+GET    /api/auth/profile
+PUT    /api/auth/profile
+```
+
+Learner APIs:
 
 ```
 GET    /api/learner/quizzes
@@ -127,6 +139,8 @@ npm run dev
 
 6. Open the Learner section in the website and click **Hỏi AI Tutor**.
 
+Set `JWT_SECRET` in `backend/.env` to a random secret of at least 32 characters before starting the backend.
+
 AI endpoint: `POST /api/ai/chat`, body example:
 
 ```json
@@ -138,3 +152,7 @@ AI endpoint: `POST /api/ai/chat`, body example:
 ```
 
 The API key is required for real AI responses. If no key is configured, the endpoint returns a setup message. The chatbot currently keeps conversation history in the browser for the active page session; it does not save chat history to the database.
+
+## Function Map
+
+See [FUNCTIONAL_MAP.md](FUNCTIONAL_MAP.md) for the actor-by-actor mapping from the supplied data-flow diagram, including implemented workflows and remaining gaps.

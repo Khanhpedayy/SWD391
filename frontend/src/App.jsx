@@ -9,7 +9,13 @@ import LearnerQuizDetails from "./pages/LearnerQuizDetails";
 import LearnerTakeQuiz from "./pages/LearnerTakeQuiz";
 import LearnerQuizResults from "./pages/LearnerQuizResults";
 import LearnerProgress from "./pages/LearnerProgress";
+import LearnerAccount from "./pages/LearnerAccount";
 import AIChatbot from "./components/AIChatbot";
+import { isLearnerAuthenticated } from "./services/learnerSession";
+
+function RequireLearner({ children }) {
+    return isLearnerAuthenticated() ? children : <Navigate to="/learner/account" replace />;
+}
 
 function InstructorModule() {
     const [currentTab, setCurrentTab] = useState("questions");
@@ -104,6 +110,13 @@ function LearnerShell() {
                 >
                     Progress & Results
                 </NavLink>
+                <NavLink
+                    to="/learner/account"
+                    className={({ isActive }) => `nav-tab ${isActive ? "active" : ""}`}
+                    style={{ textDecoration: "none" }}
+                >
+                    Account
+                </NavLink>
             </nav>
         </>
     );
@@ -136,52 +149,61 @@ function App() {
                 <Route path="/" element={<Navigate to="/instructor" replace />} />
                 <Route path="/instructor" element={<InstructorModule />} />
                 <Route
-                    path="/learner"
+                    path="/learner/account"
                     element={
                         <>
                             <LearnerShell />
-                            <LearnerQuizBrowse />
+                            <LearnerAccount />
                         </>
+                    }
+                />
+                <Route
+                    path="/learner"
+                    element={
+                        <RequireLearner>
+                            <LearnerShell />
+                            <LearnerQuizBrowse />
+                        </RequireLearner>
                     }
                 />
                 <Route
                     path="/learner/quizzes/:id"
                     element={
-                        <>
+                        <RequireLearner>
                             <LearnerShell />
                             <LearnerQuizDetails />
-                        </>
+                        </RequireLearner>
                     }
                 />
                 <Route
                     path="/learner/practice/:attemptId"
                     element={
-                        <>
+                        <RequireLearner>
                             <LearnerShell />
                             <LearnerTakeQuiz />
-                        </>
+                        </RequireLearner>
                     }
                 />
                 <Route
                     path="/learner/results/:attemptId"
                     element={
-                        <>
+                        <RequireLearner>
                             <LearnerShell />
                             <LearnerQuizResults />
-                        </>
+                        </RequireLearner>
                     }
                 />
                 <Route
                     path="/learner/progress"
                     element={
-                        <>
+                        <RequireLearner>
                             <LearnerShell />
                             <LearnerProgress />
-                        </>
+                        </RequireLearner>
                     }
                 />
             </Routes>
-            {isLearner && <AIChatbot />}
+            {isLearner && isLearnerAuthenticated() && <AIChatbot />}
         </main>
     );
 }
